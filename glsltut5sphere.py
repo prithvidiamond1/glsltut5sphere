@@ -10,6 +10,10 @@ import glm
 
 enable_query = False
 
+x_rotate = False
+y_rotate = False
+z_rotate = False
+
 glfw.init()
 
 # setting context flags
@@ -32,8 +36,15 @@ glfw.make_context_current(window)
 ctx = moderngl.create_context(require=330)
 
 def window_quit(window, key, scancode, action, mods):
+    global x_rotate, y_rotate, z_rotate
     if key == GLFW.GLFW_KEY_ESCAPE and action == GLFW.GLFW_PRESS:
         glfw.set_window_should_close(window, GLFW.GLFW_TRUE)
+    if key == GLFW.GLFW_KEY_X and action == GLFW.GLFW_PRESS:
+        x_rotate = not x_rotate
+    if key == GLFW.GLFW_KEY_Y and action == GLFW.GLFW_PRESS:
+        y_rotate = not y_rotate
+    if key == GLFW.GLFW_KEY_Z and action == GLFW.GLFW_PRESS:
+        z_rotate = not z_rotate
 
 def window_resize(window, w, h):
     projection = np.array(glm.perspective(45.0, float(w/(h+0.00001)), 2.0, 100.0), 'f4')
@@ -50,37 +61,48 @@ prog = ctx.program(
     fragment_shader=open('prog.frag', 'r').read(),
 )
 
-def fragmenter(t_verts, next_verts=None, cycles=1):
+# def fragmenter(t_verts, next_verts=None, cycles=1):
+#     def midpoint(v1, v2):
+#         return ((v1[0]+v2[0])/2, (v1[1]+v2[1])/2, (v1[2]+v2[2])/2)
+    
+#     if next_verts is None:
+#         next_verts = t_verts
+
+#     if cycles == 0:
+#         return t_verts
+
+#     new_verts = []
+#     no_verts = len(next_verts)
+
+#     for idx in range(2, no_verts, 3):
+#         m1 = midpoint(next_verts[idx-2], next_verts[idx-1])
+#         m2 = midpoint(next_verts[idx-1], next_verts[idx])
+#         m3 = midpoint(next_verts[idx], next_verts[idx-2])
+#         new_verts.extend([m3, next_verts[idx-2], m1, m1, next_verts[idx-1], m2, m2, next_verts[idx], m3, m1, m2, m3])
+    
+#     t_verts.extend(new_verts)
+#     return fragmenter(t_verts, new_verts, cycles-1)
+
+def fragmenter(vertices, cycles):
     def midpoint(v1, v2):
         return ((v1[0]+v2[0])/2, (v1[1]+v2[1])/2, (v1[2]+v2[2])/2)
-    
-    if next_verts is None:
-        next_verts = t_verts
 
-    if cycles == 0:
-        return t_verts
+    for current_cycle in range(cycles):
+        new_vertices = []
 
-    new_verts = []
-    no_verts = len(next_verts)
+        for triangle in zip(*(iter(vertices),) * 3):  # make groups of 3 vertices
+            v1 = midpoint(triangle[0], triangle[1])
+            v2 = midpoint(triangle[1], triangle[2])
+            v3 = midpoint(triangle[2], triangle[0])
 
-    for idx in range(no_verts):
-        if idx == 0:
-            m1 = midpoint(next_verts[no_verts-1], next_verts[idx])
-            m2 = midpoint(next_verts[idx], next_verts[idx+1])
-        elif idx == no_verts-1:
-            m1 = midpoint(next_verts[idx-1], next_verts[idx])
-            m2 = midpoint(next_verts[idx], next_verts[0])
-        else:
-            m1 = midpoint(next_verts[idx-1], next_verts[idx])
-            m2 = midpoint(next_verts[idx], next_verts[idx+1])
-        new_verts.extend([m2, m1, next_verts[idx], m2, m1])
-    
-    t_verts.extend(new_verts)
-    return fragmenter(t_verts, new_verts, cycles-1)
+            new_vertices.extend([v1, v2, v3, triangle[0], v1, v3, v1, triangle[1], v2, v2, triangle[2], v3])
 
+        vertices = new_vertices
+
+    return vertices
 
 sphere_vertices = [(0, (3**0.5)-0.5, 0), (-1, -0.5, 0), (1, -0.5, 0)]
-sphere_vertices = np.array(fragmenter(sphere_vertices, cycles=3), 'f4')
+sphere_vertices = np.array(fragmenter(sphere_vertices, cycles=5), 'f4')
 
 vbo1 = ctx.buffer(sphere_vertices)
 
@@ -88,8 +110,10 @@ projection = np.array(glm.perspective(45.0, float(width/(height+0.00001)), 2.0, 
 view = np.eye(4, dtype='f4')
 model = np.eye(4, dtype='f4')
 
-view = glm.translate(view, np.array((0, -0.3, -2), 'f4'))
-# model = glm.rotate(model, -10, np.array((0, 1, 0), 'f4'))
+view = glm.translate(view, np.array((0, 0, -5), 'f4'))
+model = glm.rotate(model, 0.3, np.array((1, 0, 0), 'f4'))
+model = glm.rotate(model, -0.7, np.array((0, 1, 0), 'f4'))
+model = glm.rotate(model, -0.4, np.array((1, 0, 0), 'f4'))
 
 prog['projection'].write(projection)
 prog['view'].write(view)
@@ -115,15 +139,45 @@ init_time = start_time = time.time()
 if enable_query:
     query = ctx.query(samples=True, time=True, primitives=True) # for quering info about no of samples, time elapsed and no of primitives
 
+x_theta = y_theta = z_theta = 0
+
+def render_scene():
+    global model
+    global x_theta, y_theta, z_theta
+
+    if x_rotate:
+        x_theta = 0.02
+    elif not x_rotate:
+        x_theta = 0
+    
+    if y_rotate:
+        y_theta = 0.02
+    elif not y_rotate:
+        y_theta = 0
+    
+    if z_rotate:
+        z_theta = 0.02
+    elif not z_rotate:
+        z_theta = 0
+
+    model = glm.rotate(model, x_theta, np.array([1, 0, 0], 'f4'))
+    model = glm.rotate(model, y_theta, np.array([0, 1, 0], 'f4'))
+    model = glm.rotate(model, z_theta, np.array([0, 0, 1], 'f4'))
+    prog['model'].write(model)
+
+    vao.render(moderngl.TRIANGLES)
+
 while not glfw.window_should_close(window):
     ctx.screen.use()
     ctx.screen.clear(0.0, 0.0, 0.0, 1.0)
 
     if enable_query:
         with query:
-            vao.render(moderngl.TRIANGLES)
+            render_scene()
+            # vao.render(moderngl.TRIANGLES)
     else:
-        vao.render(moderngl.TRIANGLES)
+        render_scene()
+        # vao.render(moderngl.TRIANGLES)
 
     glfw.swap_buffers(window)
     glfw.poll_events()
