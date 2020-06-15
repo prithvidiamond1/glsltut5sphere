@@ -61,7 +61,7 @@ prog = ctx.program(
     fragment_shader=open('prog.frag', 'r').read(),
 )
 
-# def fragmenter(t_verts, next_verts=None, cycles=1):
+# def fragmenter(t_verts, next_verts=None, cycles=1): # Recursive variant of fragmenter
 #     def midpoint(v1, v2):
 #         return ((v1[0]+v2[0])/2, (v1[1]+v2[1])/2, (v1[2]+v2[2])/2)
     
@@ -83,7 +83,7 @@ prog = ctx.program(
 #     t_verts.extend(new_verts)
 #     return fragmenter(t_verts, new_verts, cycles-1)
 
-def fragmenter(vertices, cycles):
+def fragmenter(vertices, cycles): # Recursive variant of fragmenter
     def midpoint(v1, v2):
         return ((v1[0]+v2[0])/2, (v1[1]+v2[1])/2, (v1[2]+v2[2])/2)
 
@@ -101,25 +101,57 @@ def fragmenter(vertices, cycles):
 
     return vertices
 
-sphere_vertices = [(0, (3**0.5)-0.5, 0), (-1, -0.5, 0), (1, -0.5, 0)]
-sphere_vertices = np.array(fragmenter(sphere_vertices, cycles=5), 'f4')
+t1_vertices = [[0, (2**0.5), 0], [-1, 0, 1], [1, 0, 1]]
+t2_vertices = [[0, (2**0.5), 0], [-1, 0, -1], [-1, 0, 1]]
+t3_vertices = [[0, (2**0.5), 0], [1, 0, 1], [1, 0, -1]]
+t4_vertices = [[0, (2**0.5), 0], [-1, 0, -1], [1, 0, -1]]
 
-vbo1 = ctx.buffer(sphere_vertices)
+t5_vertices = [[0, -(2**0.5), 0], [-1, 0, 1], [1, 0, 1]]
+t6_vertices = [[0, -(2**0.5), 0], [-1, 0, -1], [-1, 0, 1]]
+t7_vertices = [[0, -(2**0.5), 0], [1, 0, 1], [1, 0, -1]]
+t8_vertices = [[0, -(2**0.5), 0], [-1, 0, -1], [1, 0, -1]]
+
+trans_verts = t1_vertices+t2_vertices+t3_vertices+t4_vertices+t5_vertices+t6_vertices+t7_vertices+t8_vertices
+
+sphere_vertices = np.array(fragmenter(trans_verts, cycles=5), 'f4')
+
+center = [0, 0, 0]
+
+def normalizer(verts, center, radius):
+    def normalize(v1, v2, length):
+        def distance(v1, v2):
+            return ((v2[0]-v1[0])**2+(v2[1]-v1[1])**2+(v2[2]-v1[2])**2)**0.5
+
+        dx = v2[0] - v1[0]
+        dy = v2[1] - v1[1]
+        dz = v2[2] - v1[2]
+        dx = dx*length/distance(v1, v2)
+        dy = dy*length/distance(v1, v2)
+        dz = dz*length/distance(v1, v2)
+        
+        return (v1[0]+dx, v1[1]+dy, v1[2]+dz)
+
+    n_verts = []
+    for vert in verts:
+        n_verts.append(normalize(center, vert, radius))
+    
+    return n_verts
+
+sphere_vertices = np.array(normalizer(sphere_vertices, center, 2), 'f4')
+
+vbo = ctx.buffer(sphere_vertices)
 
 projection = np.array(glm.perspective(45.0, float(width/(height+0.00001)), 2.0, 100.0), 'f4')
 view = np.eye(4, dtype='f4')
 model = np.eye(4, dtype='f4')
 
 view = glm.translate(view, np.array((0, 0, -5), 'f4'))
-model = glm.rotate(model, 0.3, np.array((1, 0, 0), 'f4'))
-model = glm.rotate(model, -0.7, np.array((0, 1, 0), 'f4'))
-model = glm.rotate(model, -0.4, np.array((1, 0, 0), 'f4'))
 
 prog['projection'].write(projection)
 prog['view'].write(view)
 prog['model'].write(model)
 
-vao = ctx.vertex_array(prog, ((vbo1, '3f', 'position'),))
+vao = ctx.vertex_array(prog, ((vbo, '3f', 'position'),))
 
 ctx.enable(ctx.DEPTH_TEST) # for testing without culling
 
@@ -174,10 +206,8 @@ while not glfw.window_should_close(window):
     if enable_query:
         with query:
             render_scene()
-            # vao.render(moderngl.TRIANGLES)
     else:
         render_scene()
-        # vao.render(moderngl.TRIANGLES)
 
     glfw.swap_buffers(window)
     glfw.poll_events()
