@@ -61,28 +61,6 @@ prog = ctx.program(
     fragment_shader=open('prog.frag', 'r').read(),
 )
 
-# def fragmenter(t_verts, next_verts=None, cycles=1): # Recursive variant of fragmenter
-#     def midpoint(v1, v2):
-#         return ((v1[0]+v2[0])/2, (v1[1]+v2[1])/2, (v1[2]+v2[2])/2)
-    
-#     if next_verts is None:
-#         next_verts = t_verts
-
-#     if cycles == 0:
-#         return t_verts
-
-#     new_verts = []
-#     no_verts = len(next_verts)
-
-#     for idx in range(2, no_verts, 3):
-#         m1 = midpoint(next_verts[idx-2], next_verts[idx-1])
-#         m2 = midpoint(next_verts[idx-1], next_verts[idx])
-#         m3 = midpoint(next_verts[idx], next_verts[idx-2])
-#         new_verts.extend([m3, next_verts[idx-2], m1, m1, next_verts[idx-1], m2, m2, next_verts[idx], m3, m1, m2, m3])
-    
-#     t_verts.extend(new_verts)
-#     return fragmenter(t_verts, new_verts, cycles-1)
-
 def fragmenter(vertices, cycles): # Recursive variant of fragmenter
     def midpoint(v1, v2):
         return ((v1[0]+v2[0])/2, (v1[1]+v2[1])/2, (v1[2]+v2[2])/2)
@@ -113,9 +91,18 @@ t8_vertices = [[0, -(2**0.5), 0], [-1, 0, -1], [1, 0, -1]]
 
 trans_verts = t1_vertices+t2_vertices+t3_vertices+t4_vertices+t5_vertices+t6_vertices+t7_vertices+t8_vertices
 
-sphere_vertices = np.array(fragmenter(trans_verts, cycles=5), 'f4')
+center = (0, 0, 0)
 
-center = [0, 0, 0]
+light_pos = (-2, -2, -2)
+light_color = (1.0, 1.0, 1.0)
+
+view_pos = center
+
+prog['lightcolor'] = light_color
+prog['lightpos'] = light_pos
+prog['viewpos'] = view_pos
+
+sphere_vertices = np.array(fragmenter(trans_verts, cycles=5), 'f4')
 
 def normalizer(verts, center, radius):
     def normalize(v1, v2, length):
@@ -155,7 +142,7 @@ vao = ctx.vertex_array(prog, ((vbo, '3f', 'position'),))
 
 ctx.enable(ctx.DEPTH_TEST) # for testing without culling
 
-ctx.wireframe = True
+# ctx.wireframe = True
 
 # ctx.enable(ctx.DEPTH_TEST|ctx.CULL_FACE) # for testing with culling
 # ctx.cull_face = 'back'
