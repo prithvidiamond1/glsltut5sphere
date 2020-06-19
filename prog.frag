@@ -3,11 +3,13 @@
 // output variables are required as variables like gl_FragColor is deprecated in core context
 
 uniform vec3 lightcolor;
-uniform vec3 lightpos;
-uniform vec3 viewpos;
+// uniform vec3 lightpos;
+// uniform vec3 viewpos;
 
 in vec3 normal;
 in vec3 fragpos;
+in vec3 lightpos;
+in vec3 viewpos;
 
 out vec4 FragColor;
 

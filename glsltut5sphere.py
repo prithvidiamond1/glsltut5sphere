@@ -99,8 +99,8 @@ light_color = (1.0, 1.0, 1.0)
 view_pos = center
 
 prog['lightcolor'] = light_color
-prog['lightpos'] = light_pos
-prog['viewpos'] = view_pos
+prog['LightPos'] = light_pos
+prog['ViewPos'] = view_pos
 
 sphere_vertices = np.array(fragmenter(trans_verts, cycles=5), 'f4')
 
@@ -134,7 +134,7 @@ model = np.eye(4, dtype='f4')
 
 swivel_radius = 5
 campos = np.array((0, 0, swivel_radius), 'f4')
-camtarget = np.array(center, 'f4')
+camtarget = np.array(view_pos, 'f4')
 camup = np.array((0, 1, 0), 'f4')
 
 view = glm.lookAt(campos, camtarget, camup)
@@ -154,7 +154,7 @@ ctx.cull_face = 'back'
 ctx.front_face = 'ccw'
 
 # Framerate measuring stuff
-framerate_test = True
+framerate_test = False
 
 frames = 0
 avg_frames, avg_count = 0, 1
